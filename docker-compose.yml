@@ -1,0 +1,40 @@
+services:
+  playwright-desktop:
+    build: .
+    container_name: playwright_desktop
+    working_dir: /app
+    shm_size: "2gb"
+    ipc: host
+    ports:
+      - "6080:6080"
+      - "5900:5900"
+    volumes:
+      - ./:/app
+    tty: true
+    stdin_open: true
+    environment:
+      - DISPLAY=:99
+    command: >
+      bash -lc "
+        Xvfb :99 -screen 0 1920x1080x24 -ac &
+        fluxbox &
+        until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 1; done &&
+        x11vnc -display :99 -forever -shared -nopw -listen 0.0.0.0 -xkb -rfbport 5900 > /tmp/x11vnc.log 2>&1 &
+        until [ -f /usr/share/novnc/vnc.html ]; do sleep 1; done &&
+        websockify 6080 localhost:5900 --web /usr/share/novnc > /tmp/websockify.log 2>&1 &
+        tail -f /dev/null
+      "
+
+
+# Avvia automaticamente l'ambiente grafico virtuale per Playwright:
+# - Xvfb crea il display :99
+# - fluxbox gestisce le finestre
+# - aspetta che il display sia davvero pronto
+# - x11vnc espone il display via VNC
+# - websockify/noVNC lo rende visibile dal browser su porta 6080
+# Gli script Python (es. python test.py) li lancio poi manualmente dentro il container.
+
+# Nota: qui ho introdotto una piccola attesa attiva con `until xdpyinfo -display :99`
+# perché x11vnc, se parte troppo presto, a volte non riesce ad agganciarsi al display Xvfb
+# e va in errore/defunct. Così prima aspetto che il display :99 sia davvero pronto,
+# poi avvio x11vnc e infine websockify/noVNC.
