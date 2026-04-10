@@ -4,8 +4,8 @@ import traceback
 from playwright.sync_api import sync_playwright
 from general import run_actions_check_reaction
 
-USERNAME = "sersebasti"
-PASSWORD = "Merca10tello"
+USERNAME = "user"
+PASSWORD = "pass"
 LOGIN_URL = "https://solar.siseli.com/#/user/login?redirect=%23%2Fuser%2Flogin"
 
 delay_short = 1000
