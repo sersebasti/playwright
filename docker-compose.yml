@@ -19,13 +19,12 @@ services:
       - APP_USERNAME=${APP_USERNAME}
       - APP_PASSWORD=${APP_PASSWORD}
 
-      # configurazione database
+      # db
       - DB_HOST=db
       - DB_PORT=3306
       - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
+      - DB_USER=root
       - DB_PASSWORD=${DB_PASSWORD}
-
     depends_on:
       - db
 
@@ -46,7 +45,7 @@ services:
     restart: unless-stopped
     environment:
       - MARIADB_DATABASE=${DB_NAME}
-      - MARIADB_USER=${DB_USER}
+      - MARIADB_USER=root
       - MARIADB_PASSWORD=${DB_PASSWORD}
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
     ports:
@@ -54,6 +53,24 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./db/init:/docker-entrypoint-initdb.d
+
+  api:
+    build: .
+    container_name: solar_api
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "5002:5000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME}
+      - DB_USER=root
+      - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - db
+    command: python api.py
 
 volumes:
   mariadb_data:
