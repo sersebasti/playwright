@@ -1,0 +1,57 @@
+Script name: main
+Log dir: /app/logs/main/2026-04-11
+Log file: /app/logs/main/2026-04-11/run_20260411_135039.log
+
+====================================================================================================
+START STEP: Login
+====================================================================================================
+Eseguo sequenza actions: [{'type': 'goto', 'url': 'https://solar.siseli.com/#/user/login?redirect=%23%2Fuser%2Flogin', 'timeout': 120000}, {'type': 'wait', 'ms': 5000}, {'type': 'fill', 'selector': '#account', 'value': 'sersebasti'}, {'type': 'wait', 'ms': 1000}, {'type': 'fill', 'selector': '#password', 'value': 'Merca10tello'}, {'type': 'wait', 'ms': 1000}, {'type': 'click', 'selector': "button[type='submit']"}, {'type': 'wait', 'ms': 5000}, {'type': 'custom_screenshot', 'name': 'after_login.png'}]
+[ACTION 1] goto url=https://solar.siseli.com/#/user/login?redirect=%23%2Fuser%2Flogin
+[ACTION 2] wait ms=5000
+[ACTION 3] fill selector=#account count=1
+[ACTION 4] wait ms=1000
+[ACTION 5] fill selector=#password count=1
+[ACTION 6] wait ms=1000
+[ACTION 7] click selector=button[type='submit'] count=1
+[ACTION 8] wait ms=5000
+Screenshot salvato: logs/main/2026-04-11/after_login.png
+Verifico reaction: {'type': 'element_present', 'selector': "div.ant-menu-submenu-title:has-text('Operations')"}
+[REACTION] selector=div.ant-menu-submenu-title:has-text('Operations') count=1 url=https://solar.siseli.com/#/operator/overview
+Esito reaction Login: True
+END STEP: Login
+
+====================================================================================================
+START STEP: Station Device click
+====================================================================================================
+Eseguo sequenza actions: [{'type': 'click', 'selector': "div.ant-menu-submenu-title:has-text('Station Device')"}, {'type': 'wait', 'ms': 1000}, {'type': 'custom_screenshot', 'name': 'after_station device click.png'}]
+[ACTION 1] click selector=div.ant-menu-submenu-title:has-text('Station Device') count=1
+[ACTION 2] wait ms=1000
+Screenshot salvato: logs/main/2026-04-11/after_station device click.png
+Verifico reaction: {'type': 'element_present', 'selector': "a[href='#/operator/stationDevice/deviceList']"}
+[REACTION] selector=a[href='#/operator/stationDevice/deviceList'] count=1 url=https://solar.siseli.com/#/operator/overview
+Esito reaction Station Device click: True
+END STEP: Station Device click
+
+====================================================================================================
+START STEP: Device List click
+====================================================================================================
+Eseguo sequenza actions: [{'type': 'click', 'selector': "a[href='#/operator/stationDevice/deviceList']"}, {'type': 'wait', 'ms': 5000}, {'type': 'custom_screenshot', 'name': 'after_device list click.png'}]
+[ACTION 1] click selector=a[href='#/operator/stationDevice/deviceList'] count=1
+[ACTION 2] wait ms=5000
+Screenshot salvato: logs/main/2026-04-11/after_device list click.png
+Verifico reaction: {'type': 'element_present', 'selector': "tr[data-row-key='416360187241136128'] td"}
+[REACTION] selector=tr[data-row-key='416360187241136128'] td count=25 url=https://solar.siseli.com/#/operator/stationDevice/deviceList?deviceApplyModeCategoryTabActiveKey=mainDevice
+Esito reaction Device List click: True
+END STEP: Device List click
+
+====================================================================================================
+START STEP: View click
+====================================================================================================
+Eseguo sequenza actions: [{'type': 'click', 'selector': "tr[data-row-key='416360187241136128'] a:has-text('View'):visible"}, {'type': 'wait', 'ms': 5000}, {'type': 'custom_screenshot', 'name': 'after_view click.png'}]
+[ACTION 1] click selector=tr[data-row-key='416360187241136128'] a:has-text('View'):visible count=1
+[ACTION 2] wait ms=5000
+Screenshot salvato: logs/main/2026-04-11/after_view click.png
+Verifico reaction: {'type': 'element_present', 'selector': "div:has-text('Device Info')"}
+[REACTION] selector=div:has-text('Device Info') count=9 url=https://solar.siseli.com/#/operator/stationDevice/deviceList/deviceDetails?activeTabKey=dataOverview&deviceId=416360187241136128
+Esito reaction View click: True
+END STEP: View click

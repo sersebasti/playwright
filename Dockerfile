@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     fluxbox \
     x11vnc \
+    tigervnc-scraping-server \
     novnc \
     websockify \
     x11-utils \
