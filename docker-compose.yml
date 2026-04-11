@@ -1,6 +1,8 @@
 services:
   playwright-desktop:
-    build: .
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
     container_name: playwright_desktop
     working_dir: /app
     shm_size: "2gb"
@@ -9,18 +11,16 @@ services:
       - "6080:6080"
       - "5900:5900"
     volumes:
-      - ./:/app
+      - ./collector:/app
     tty: true
     stdin_open: true
     environment:
       - TZ=Europe/Rome
       - DISPLAY=:99
 
-      # credenziali applicazione
       - APP_USERNAME=${APP_USERNAME}
       - APP_PASSWORD=${APP_PASSWORD}
 
-      # db
       - DB_HOST=db
       - DB_PORT=3306
       - DB_NAME=${DB_NAME}
@@ -57,11 +57,13 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d
 
   api:
-    build: .
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     container_name: solar_api
     working_dir: /app
     volumes:
-      - ./:/app
+      - ./api:/app
     ports:
       - "5002:5000"
     environment:
@@ -77,30 +79,3 @@ services:
 
 volumes:
   mariadb_data:
-
-# Configurazione ATTUALE funzionante:
-# - Xvfb crea il display virtuale :99
-# - fluxbox gestisce le finestre
-# - x0vncserver (TigerVNC) espone il display :99 su VNC porta 5900
-# - websockify/noVNC lo rende accessibile dal browser su porta 6080
-#
-# URL consigliato:
-# http://localhost:6080/vnc_lite.html?host=localhost&port=6080&path=websockify&autoconnect=1&resize=remote
-
-# Vecchia configurazione con x11vnc, lasciata qui commentata nel caso in futuro
-# su Windows/WSL tu voglia riprovarla:
-#
-#    command:
-#      bash -lc "
-#          Xvfb :99 -screen 0 1920x1080x24 -ac &
-#          fluxbox &
-#          until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 1; done &&
-#          x11vnc -display :99 -forever -shared -nopw -listen 0.0.0.0 -xkb -rfbport 5900 > /tmp/x11vnc.log 2>&1 &
-#          until [ -f /usr/share/novnc/vnc.html ]; do sleep 1; done &&
-#          websockify 6080 localhost:5900 --web /usr/share/novnc > /tmp/websockify.log 2>&1 &
-#          tail -f /dev/null
-#      "
-#
-# Nota:
-# in questo ambiente Linux/container la soluzione x11vnc risultava instabile,
-# mentre x0vncserver ha funzionato correttamente.
