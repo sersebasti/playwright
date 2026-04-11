@@ -25,7 +25,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=${DB_NAME}
       - DB_USER=root
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
     depends_on:
       - db
 
@@ -48,7 +48,6 @@ services:
       - TZ=Europe/Rome
       - MARIADB_DATABASE=${DB_NAME}
       - MARIADB_USER=root
-      - MARIADB_PASSWORD=${DB_PASSWORD}
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
     ports:
       - "13006:3306"
@@ -72,7 +71,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=${DB_NAME}
       - DB_USER=root
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
     depends_on:
       - db
     command: python api.py
