@@ -1,7 +1,9 @@
 import os
 import sys
+import json
 import shutil
 import traceback
+import pymysql
 from pathlib import Path
 from datetime import datetime
 from playwright.sync_api import sync_playwright
@@ -9,6 +11,13 @@ from general import run_actions_check_reaction, set_log_context
 
 USERNAME = os.getenv("APP_USERNAME", "sersebasti")
 PASSWORD = os.getenv("APP_PASSWORD", "Merca10tello")
+
+DB_HOST = os.getenv("DB_HOST", "db")
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
+DB_NAME = os.getenv("DB_NAME", "solar")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_ROOT_PASSWORD", "local")
+
 LOGIN_URL = "https://solar.siseli.com/#/user/login?redirect=%23%2Fuser%2Flogin"
 
 delay_short = 1000
@@ -76,6 +85,136 @@ def run_step(page, step_name, actions, reaction):
 
     print(f"END STEP: {step_name}")
 
+
+def save_page_html(page, output_path: Path):
+    html = page.content()
+    output_path.write_text(html, encoding="utf-8")
+    print(f"HTML pagina salvato in: {output_path}")
+
+
+def save_device_info_json(page, output_path: Path):
+    data = {}
+
+    tables = page.locator("table")
+    table_count = tables.count()
+
+    target_table = None
+
+    for i in range(table_count):
+        table = tables.nth(i)
+        try:
+            text = " ".join(table.inner_text().split())
+            if "Inverter Program Version" in text and "Input Voltage" in text:
+                target_table = table
+                break
+        except Exception:
+            continue
+
+    if target_table is None:
+        raise RuntimeError("Tabella Device Info corretta non trovata")
+
+    rows = target_table.locator("tr.ant-descriptions-row")
+    row_count = rows.count()
+
+    i = 0
+    while i < row_count - 1:
+        label_row = rows.nth(i)
+        value_row = rows.nth(i + 1)
+
+        labels = label_row.locator("span.ant-descriptions-item-label")
+        values = value_row.locator("span.ant-descriptions-item-content")
+
+        label_count = labels.count()
+        value_count = values.count()
+
+        if label_count == value_count and label_count > 0:
+            for j in range(label_count):
+                key = " ".join(labels.nth(j).inner_text().split())
+                value = " ".join(values.nth(j).inner_text().split())
+                data[key] = value
+            i += 2
+        else:
+            i += 1
+
+    try:
+        update_text = page.locator("text=UpdateTime").first.inner_text().strip()
+        data["_update_time"] = " ".join(update_text.split())
+    except Exception:
+        pass
+
+    output_path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+    print(f"JSON salvato in: {output_path}")
+
+
+def verify_json_file(json_path: Path):
+    if not json_path.exists():
+        raise RuntimeError(f"File JSON non trovato: {json_path}")
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"Il file non è un JSON valido: {json_path} | errore: {e}")
+
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Il JSON non contiene un oggetto dict: {json_path}")
+
+    print(f"JSON verificato correttamente: {json_path}")
+    print(f"Chiavi trovate: {len(data)}")
+
+    for key, value in data.items():
+        print(f"  - {key}: {value}")
+
+    return data
+
+
+def save_device_info_to_db(json_path: Path, device_row_key: str):
+    if not json_path.exists():
+        raise RuntimeError(f"JSON non trovato: {json_path}")
+
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Il file non contiene un oggetto JSON valido: {json_path}")
+
+    update_time = data.get("_update_time")
+    json_payload = json.dumps(data, ensure_ascii=False)
+
+    conn = pymysql.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=True,
+    )
+
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO device_snapshots (
+                    device_row_key,
+                    update_time,
+                    json_data
+                ) VALUES (%s, %s, %s)
+            """
+            cursor.execute(sql, (
+                device_row_key,
+                update_time,
+                json_payload
+            ))
+
+        print("Dati salvati su DB correttamente")
+        print(f"  - device_row_key: {device_row_key}")
+        print(f"  - update_time: {update_time}")
+    finally:
+        conn.close()
 
 def main():
     if not USERNAME or not PASSWORD:
@@ -175,12 +314,96 @@ def main():
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "div:has-text('Device Info')"
+                    "selector": "text=Device Info"
                 }
 
                 run_step(page, step_name, actions, reaction)
                 ##############################################################################################
 
+                ##############################################################################################
+                step_name = "Save data to file"
+
+                print("\n" + "=" * 100)
+                print(f"START STEP: {step_name}")
+                print("=" * 100)
+
+                html_path = LOGS_DIR / "device_info_page.html"
+                json_path = LOGS_DIR / "device_info.json"
+
+                save_page_html(page, html_path)
+                save_device_info_json(page, json_path)
+                verify_json_file(json_path)
+
+                print(f"END STEP: {step_name}")
+
+                ##############################################################################################
+
+                ##############################################################################################
+                step_name = "Save data to db"
+                print("\n" + "=" * 100)
+                print(f"START STEP: {step_name}")
+                print("=" * 100)
+
+                json_path = LOGS_DIR / "device_info.json"
+
+                verify_json_file(json_path)
+                save_device_info_to_db(
+                    json_path=json_path,
+                    device_row_key="416360187241136128"
+                )
+
+                print(f"END STEP: {step_name}")
+                ############################
+
+                ##############################################################################################
+                step_name = "Open user menu"
+                actions = [
+                    {"type": "click", "selector": f"span.ant-dropdown-trigger:has(span:has-text('{USERNAME}'))"},
+                    {"type": "wait", "ms": delay_short},
+                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
+                ]
+
+                reaction = {
+                    "type": "element_present",
+                    "selector": "li[role='menuitem']:has-text('Logout')"
+                }
+
+                run_step(page, step_name, actions, reaction)
+                ##############################################################################################
+
+
+                ##############################################################################################
+                step_name = "Logout click"
+                actions = [
+                    {"type": "click", "selector": "li[role='menuitem']:has-text('Logout')"},
+                    {"type": "wait", "ms": delay_short},
+                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
+                ]
+
+                reaction = {
+                    "type": "element_present",
+                    "selector": "button.ant-btn.ant-btn-primary:has-text('OK')"
+                }
+
+                run_step(page, step_name, actions, reaction)
+                ##############################################################################################
+
+
+                ##############################################################################################
+                step_name = "Confirm logout"
+                actions = [
+                    {"type": "click", "selector": "button.ant-btn.ant-btn-primary:has-text('OK')"},
+                    {"type": "wait", "ms": delay_medium},
+                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
+                ]
+
+                reaction = {
+                    "type": "element_present",
+                    "selector": "button[type='submit']"
+                }
+
+                run_step(page, step_name, actions, reaction)
+                ##############################################################################################
 
         except Exception as e:
             print("\n" + "!" * 100)

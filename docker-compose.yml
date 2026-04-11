@@ -15,6 +15,20 @@ services:
     environment:
       - DISPLAY=:99
 
+      # credenziali applicazione
+      - APP_USERNAME=${APP_USERNAME}
+      - APP_PASSWORD=${APP_PASSWORD}
+
+      # configurazione database
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+
+    depends_on:
+      - db
+
     command: >
       bash -lc '
         export DISPLAY=:99
@@ -25,6 +39,24 @@ services:
         until ss -lnt | grep -q ":5900"; do sleep 1; done
         exec websockify 6080 127.0.0.1:5900 --web /usr/share/novnc
       '
+
+  db:
+    image: mariadb:11
+    container_name: solar_db
+    restart: unless-stopped
+    environment:
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    ports:
+      - "13006:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+
+volumes:
+  mariadb_data:
 
 # Configurazione ATTUALE funzionante:
 # - Xvfb crea il display virtuale :99
