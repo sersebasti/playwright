@@ -59,15 +59,45 @@ LOG_FILE = LOGS_DIR / f"run_{RUN_TS}.log"
 
 
 class Tee:
-    def __init__(self, *streams):
+    def __init__(self, *streams, timestamp_format="%Y-%m-%d %H:%M:%S"):
         self.streams = streams
+        self.timestamp_format = timestamp_format
+        self._buffer = ""
+
+    def _timestamp(self) -> str:
+        return datetime.now().strftime(self.timestamp_format)
 
     def write(self, data):
-        for stream in self.streams:
-            stream.write(data)
-            stream.flush()
+        if not data:
+            return
+
+        self._buffer += data
+
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+
+            if line.strip():
+                out = f"[{self._timestamp()}] {line}\n"
+            else:
+                out = "\n"
+
+            for stream in self.streams:
+                stream.write(out)
+                stream.flush()
 
     def flush(self):
+        if self._buffer:
+            if self._buffer.strip():
+                out = f"[{self._timestamp()}] {self._buffer}"
+            else:
+                out = self._buffer
+
+            for stream in self.streams:
+                stream.write(out)
+                stream.flush()
+
+            self._buffer = ""
+
         for stream in self.streams:
             stream.flush()
 
@@ -314,7 +344,7 @@ def main():
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "text=Device Info"
+                    "selector": ".ant-descriptions-view >> text=Battery Voltage"
                 }
 
                 run_step(page, step_name, actions, reaction)
