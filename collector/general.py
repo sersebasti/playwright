@@ -128,6 +128,34 @@ def run_actions_check_reaction(page: Page, actions: List[Dict[str, Any]], reacti
                 locator.first.wait_for(state="visible", timeout=action_timeout)
                 print(f"[ACTION {idx}] wait_visible selector={selector} - elemento visibile count_now={locator.count()}")
 
+            elif action_type == "wait_hidden":
+                selector = require_field(action, "selector", f"ACTION {idx}")
+                locator = page.locator(selector)
+
+                print(f"[ACTION {idx}] wait_hidden selector={selector} - attendo scomparsa timeout={action_timeout}")
+                locator.first.wait_for(state="hidden", timeout=action_timeout)
+                print(f"[ACTION {idx}] wait_hidden selector={selector} - elemento nascosto")
+
+            elif action_type == "wait_detached":
+                selector = require_field(action, "selector", f"ACTION {idx}")
+                locator = page.locator(selector)
+
+                print(f"[ACTION {idx}] wait_detached selector={selector} - attendo rimozione timeout={action_timeout}")
+                locator.first.wait_for(state="detached", timeout=action_timeout)
+                print(f"[ACTION {idx}] wait_detached selector={selector} - elemento rimosso")
+
+            elif action_type == "wait_url":
+                pattern = require_field(action, "pattern", f"ACTION {idx}")
+                print(f"[ACTION {idx}] wait_url pattern={pattern} timeout={action_timeout}")
+                page.wait_for_url(pattern, timeout=action_timeout)
+                print(f"[ACTION {idx}] wait_url completato url={page.url}")
+
+            elif action_type == "wait_load_state":
+                state = action.get("state", "load")
+                print(f"[ACTION {idx}] wait_load_state state={state} timeout={action_timeout}")
+                page.wait_for_load_state(state=state, timeout=action_timeout)
+                print(f"[ACTION {idx}] wait_load_state completato state={state} url={page.url}")
+
             elif action_type == "custom_screenshot":
                 name = require_field(action, "name", f"ACTION {idx}")
                 safe_screenshot(page, name)
@@ -139,9 +167,20 @@ def run_actions_check_reaction(page: Page, actions: List[Dict[str, Any]], reacti
             print(f"[ACTION {idx}] Errore durante action {action_type}: {e}")
             print(f"[ACTION {idx}] URL corrente: {page.url}")
             print(f"[ACTION {idx}] Selector: {action.get('selector')}")
+            if "pattern" in action:
+                print(f"[ACTION {idx}] Pattern: {action.get('pattern')}")
+            if "state" in action:
+                print(f"[ACTION {idx}] State: {action.get('state')}")
 
-            filename_png = f"action_fail_{idx}_{action_type}_{safe_name(action.get('selector', 'no_selector'))}.png"
-            filename_html = f"action_fail_{idx}_{action_type}_{safe_name(action.get('selector', 'no_selector'))}.html"
+            debug_name = safe_name(
+                action.get("selector")
+                or action.get("pattern")
+                or action.get("state")
+                or "no_selector"
+            )
+
+            filename_png = f"action_fail_{idx}_{action_type}_{debug_name}.png"
+            filename_html = f"action_fail_{idx}_{action_type}_{debug_name}.html"
 
             safe_screenshot(page, filename_png)
             save_debug_html(page, filename_html)
@@ -172,6 +211,46 @@ def run_actions_check_reaction(page: Page, actions: List[Dict[str, Any]], reacti
             safe_screenshot(page, filename_png)
             save_debug_html(page, filename_html)
             return False
+
+    elif reaction_type == "element_hidden":
+        try:
+            reaction_timeout = reaction.get("timeout", DEFAULT_TIMEOUT)
+            selector = require_field(reaction, "selector", "REACTION")
+            locator = page.locator(selector)
+
+            print(f"[REACTION] selector={selector} - attendo scomparsa url={page.url} timeout={reaction_timeout}")
+            locator.first.wait_for(state="hidden", timeout=reaction_timeout)
+            print(f"[REACTION] OK selector nascosto={selector} url={page.url}")
+
+        except Exception as e:
+            print(f"Elemento ancora visibile/non nascosto: {reaction.get('selector')} | errore: {e}")
+
+            filename_png = f"reaction_fail_{safe_name(reaction.get('selector', 'no_selector'))}.png"
+            filename_html = f"reaction_fail_{safe_name(reaction.get('selector', 'no_selector'))}.html"
+
+            safe_screenshot(page, filename_png)
+            save_debug_html(page, filename_html)
+            return False
+
+    elif reaction_type == "url_matches":
+        try:
+            reaction_timeout = reaction.get("timeout", DEFAULT_TIMEOUT)
+            pattern = require_field(reaction, "pattern", "REACTION")
+
+            print(f"[REACTION] pattern={pattern} - attendo url timeout={reaction_timeout}")
+            page.wait_for_url(pattern, timeout=reaction_timeout)
+            print(f"[REACTION] OK url match pattern={pattern} url={page.url}")
+
+        except Exception as e:
+            print(f"URL non corrisponde al pattern: {reaction.get('pattern')} | errore: {e}")
+
+            filename_png = f"reaction_fail_{safe_name(reaction.get('pattern', 'no_pattern'))}.png"
+            filename_html = f"reaction_fail_{safe_name(reaction.get('pattern', 'no_pattern'))}.html"
+
+            safe_screenshot(page, filename_png)
+            save_debug_html(page, filename_html)
+            return False
+
     else:
         raise ValueError(f"Reaction non supportata: {reaction_type}")
 

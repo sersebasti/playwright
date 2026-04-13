@@ -7,7 +7,7 @@ import pymysql
 from pathlib import Path
 from datetime import datetime
 from playwright.sync_api import sync_playwright
-from general import run_actions_check_reaction, set_log_context
+from general import run_actions_check_reaction, set_log_context, safe_screenshot
 
 USERNAME = os.getenv("APP_USERNAME", "sersebasti")
 PASSWORD = os.getenv("APP_PASSWORD", "Merca10tello")
@@ -18,7 +18,7 @@ DB_NAME = os.getenv("DB_NAME", "solar")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_ROOT_PASSWORD", "local")
 
-LOGIN_URL = "https://solar.siseli.com/#/user/login?redirect=%23%2Fuser%2Flogin"
+LOGIN_URL = "https://solar.siseli.com/"
 
 delay_short = 1000
 delay_medium = 5000
@@ -246,6 +246,7 @@ def save_device_info_to_db(json_path: Path, device_row_key: str):
     finally:
         conn.close()
 
+
 def main():
     if not USERNAME or not PASSWORD:
         raise RuntimeError("APP_USERNAME o APP_PASSWORD non impostati")
@@ -280,74 +281,79 @@ def main():
                 )
                 page = context.new_page()
 
+                page.on("console", lambda msg: print(f"[BROWSER CONSOLE] {msg.type}: {msg.text}"))
+                page.on("pageerror", lambda exc: print(f"[PAGE ERROR] {exc}"))
+                page.on("requestfailed", lambda req: print(f"[REQUEST FAILED] {req.method} {req.url} -> {req.failure}"))
+                page.on("response", lambda res: print(f"[RESPONSE >=400] {res.status} {res.url}") if res.status >= 400 else None)
+
                 ##############################################################################################
                 step_name = "Login"
                 actions = [
                     {"type": "goto", "url": LOGIN_URL, "timeout": 120000},
-                    {"type": "wait", "ms": delay_medium},
+                    {"type": "wait_visible", "selector": "#account", "timeout": 30000},
                     {"type": "fill", "selector": "#account", "value": USERNAME},
-                    {"type": "wait", "ms": delay_short},
+                    {"type": "wait_visible", "selector": "#password", "timeout": 30000},
                     {"type": "fill", "selector": "#password", "value": PASSWORD},
-                    {"type": "wait", "ms": delay_short},
+                    {"type": "wait_visible", "selector": "button[type='submit']", "timeout": 30000},
                     {"type": "click", "selector": "button[type='submit']"},
-                    {"type": "wait", "ms": delay_medium},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
                     "selector": "div.ant-menu-submenu-title:has-text('Operations')",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_login.png")
                 ##############################################################################################
 
                 ##############################################################################################
                 step_name = "Station Device click"
                 actions = [
                     {"type": "click", "selector": "div.ant-menu-submenu-title:has-text('Station Device')"},
-                    {"type": "wait", "ms": delay_short},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "a[href='#/operator/stationDevice/deviceList']"
+                    "selector": "a[href='#/operator/stationDevice/deviceList']",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_station_device_click.png")
                 ##############################################################################################
 
                 ##############################################################################################
                 step_name = "Device List click"
                 actions = [
                     {"type": "click", "selector": "a[href='#/operator/stationDevice/deviceList']"},
-                    {"type": "wait", "ms": delay_medium},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "tr[data-row-key='416360187241136128'] td"
+                    "selector": "tr[data-row-key='416360187241136128'] td",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_device_list_click.png")
                 ##############################################################################################
 
                 ##############################################################################################
                 step_name = "View click"
                 actions = [
                     {"type": "click", "selector": "tr[data-row-key='416360187241136128'] a:has-text('View'):visible"},
-                    {"type": "wait", "ms": delay_medium},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": ".ant-descriptions-view >> text=Battery Voltage"
+                    "selector": ".ant-descriptions-view >> text=Battery Voltage",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_view_click.png")
                 ##############################################################################################
 
                 ##############################################################################################
@@ -365,7 +371,6 @@ def main():
                 verify_json_file(json_path)
 
                 print(f"END STEP: {step_name}")
-
                 ##############################################################################################
 
                 ##############################################################################################
@@ -383,56 +388,54 @@ def main():
                 )
 
                 print(f"END STEP: {step_name}")
-                ############################
+                ##############################################################################################
 
                 ##############################################################################################
                 step_name = "Open user menu"
                 actions = [
                     {"type": "click", "selector": f"span.ant-dropdown-trigger:has(span:has-text('{USERNAME}'))"},
-                    {"type": "wait", "ms": delay_short},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "li[role='menuitem']:has-text('Logout')"
+                    "selector": "li[role='menuitem']:has-text('Logout')",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_open_user_menu.png")
                 ##############################################################################################
-
 
                 ##############################################################################################
                 step_name = "Logout click"
                 actions = [
                     {"type": "click", "selector": "li[role='menuitem']:has-text('Logout')"},
-                    {"type": "wait", "ms": delay_short},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "button.ant-btn.ant-btn-primary:has-text('OK')"
+                    "selector": "button.ant-btn.ant-btn-primary:has-text('OK')",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_logout_click.png")
                 ##############################################################################################
-
 
                 ##############################################################################################
                 step_name = "Confirm logout"
                 actions = [
                     {"type": "click", "selector": "button.ant-btn.ant-btn-primary:has-text('OK')"},
-                    {"type": "wait", "ms": delay_medium},
-                    {"type": "custom_screenshot", "name": f"after_{step_name.lower()}.png"},
                 ]
 
                 reaction = {
                     "type": "element_present",
-                    "selector": "button[type='submit']"
+                    "selector": "button[type='submit']",
+                    "timeout": 30000
                 }
 
                 run_step(page, step_name, actions, reaction)
+                safe_screenshot(page, "after_confirm_logout.png")
                 ##############################################################################################
 
         except Exception as e:
